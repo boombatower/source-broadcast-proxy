@@ -1,0 +1,26 @@
+{
+  "name": "boombatower/source-broadcast-proxy",
+  "description": "Forwards Valve's Source Engine LAN broadcast packets to non-default ports.",
+  "keywords": [ "docker", "source", "valve", "lan", "broadcast discovery" ],
+  "homepage": "https://github.com/boombatower/source-broadcast-proxy",
+  "authors": [
+    {
+      "name": "Jimmy Berry",
+      "email": "jimmy@boombatower.com",
+      "homepage": "http://blog.boombatower.com/",
+      "role": "Developer"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/boombatower/source-broadcast-proxy/issues",
+    "source": "https://github.com/boombatower/source-broadcast-proxy"
+  },
+  "require": {
+    "php": ">= 5.4",
+    "koraktor/steam-condenser": "~1.3",
+    "stage1/docker-php": "~0.2"
+  },
+  "bin": [
+    "proxy.php"
+  ]
+}
