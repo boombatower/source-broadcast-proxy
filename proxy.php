@@ -14,6 +14,7 @@ require_once 'vendor/autoload.php';
 require_once 'vendor/koraktor/steam-condenser/lib/steam-condenser.php'; // required
 
 const PACKET_MAX = 16384; // 2^14.
+const ELAPSE_MAX = 2.8; // Seconds that a Source client waits for response (3) with margin.
 
 $valve_ports = range(27015, 27020); //27005
 
@@ -30,40 +31,47 @@ do {
   $from = '';
   $from_port = 0;
   socket_recvfrom($socket, $buffer, PACKET_MAX, 0, $from, $from_port);
+  $start = microtime(true);
 
   echo "Received A2S_INFO request from $from:$from_port" . PHP_EOL;
 
-  // Loop through all running Docker containers and check for any that expose a Source Engine port.
+  // Forward packet to all running Docker containers that expose a Source Engine port.
+  $sockets = [];
   foreach ($manager->findAll() as $container) {
     foreach ($container->getData()['Ports'] as $port) {
       if (in_array($port['PrivatePort'], $valve_ports)) {
-        echo "-> Found Source server on port {$port['PublicPort']}";
+        echo "-> Forwarding to Source server on port {$port['PublicPort']}" . PHP_EOL;
 
         // Forward the packet to the Source server.
-        $forward = new UDPSocket();
-        $forward->connect('0.0.0.0', $port['PublicPort'], 1000);
-        $forward->send($buffer);
-        if ($forward->select(5000)) {
-          $data = $forward->recv(PACKET_MAX);
-          $forward->close();
-
-          // Change the server port to match the public port for the container.
-          $buffer = ByteBuffer::wrap($data);
-          if (!set_port($buffer, (int) $port['PublicPort'])) {
-            echo ' [failed to set port]';
-          }
-
-          // Send server response back to broadcast client.
-          $forward = new UDPSocket();
-          $forward->connect($from, $from_port, 1000);
-          $forward->send($buffer->_array());
-          $forward->close();
-        }
-        else {
-          echo ' [no response]';
-        }
-        echo PHP_EOL;
+        $sockets[$port['PublicPort']] = new UDPSocket();
+        $sockets[$port['PublicPort']]->connect('0.0.0.0', $port['PublicPort'], 1000);
+        $sockets[$port['PublicPort']]->send($buffer);
       }
+    }
+  }
+
+  // Check for responses and send them back to broadcast client. Forwarding the broadcast packet
+  // without waiting ensures that each server has the maximum amount of time to response.
+  foreach ($sockets as $port => $forward) {
+    $time_left = ELAPSE_MAX - (microtime(true) - $start);
+    if ($forward->select((int) $time_left * 1000)) {
+      $data = $forward->recv(PACKET_MAX);
+      $forward->close();
+
+      // Change the server port to match the public port for the container.
+      $buffer = ByteBuffer::wrap($data);
+      if (!set_port($buffer, (int) $port)) {
+        echo "-> Failed to set port in response from server on port $port" . PHP_EOL;
+      }
+
+      // Send server response back to broadcast client.
+      $forward = new UDPSocket();
+      $forward->connect($from, $from_port, 1000);
+      $forward->send($buffer->_array());
+      $forward->close();
+    }
+    else {
+      echo "-> No response from server on port $port" . PHP_EOL;
     }
   }
 }
