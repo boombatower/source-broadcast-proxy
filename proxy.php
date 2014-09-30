@@ -23,8 +23,15 @@ $valve_ports = range(27015, 27020);
 $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
 socket_bind($socket, '0.0.0.0', 27015);
 
-// Reuse Docker client each request.
-$manager = (new Docker\Docker())->getContainerManager();
+// If running as Docker container then attempt to connect via TCP (which only works if running with
+// --net=host, alternatives are overly complex especially with forwarding). Otherwise, if running
+// normally look for the default unix socket unix:///var/run/docker.sock.
+$client = file_exists('/.dockerinit') ?
+  new Docker\Http\DockerClient([], 'tcp://0.0.0.0:' . (getenv('DOCKER_PORT') ?: 2375)) : null;
+$manager = (new Docker\Docker($client))->getContainerManager();
+
+// Determine Docker container ID (if running as one), otherwise will result in blank.
+$id_self = trim(`cat /proc/self/cgroup | grep -o  -e "docker-.*.scope" | head -n 1 | sed "s/docker-\(.*\).scope/\\1/"`);
 
 do {
   // Block until data received.
@@ -38,6 +45,9 @@ do {
   // Forward packet to all running Docker containers that expose a Source Engine port.
   $sockets = [];
   foreach ($manager->findAll() as $container) {
+    // Do not forward request to self (good 'ol infinite loops).
+    if ($container->getId() == $id_self) continue;
+
     foreach ($container->getData()['Ports'] as $port) {
       if (in_array($port['PrivatePort'], $valve_ports)) {
         echo "-> Forwarding to Source server on port {$port['PublicPort']}" . PHP_EOL;

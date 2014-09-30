@@ -1,0 +1,6 @@
+#!/bin/bash
+docker ps -a | grep -q source-broadcast-proxy && docker start -ai source-broadcast-proxy || \
+docker run -it -p 27015:27015/udp \
+  --net=host \
+  --name source-broadcast-proxy \
+  boombatower/source-broadcast-proxy
