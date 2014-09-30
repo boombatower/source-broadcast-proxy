@@ -16,9 +16,9 @@ require_once 'vendor/koraktor/steam-condenser/lib/steam-condenser.php'; // requi
 const PACKET_MAX = 16384; // 2^14.
 const ELAPSE_MAX = 2.8; // Seconds that a Source client waits for response (3) with margin.
 
-$valve_ports = range(27015, 27020); //27005
+$valve_ports = range(27015, 27020);
 
-// Bind a socket to the first default source port. Be sure to listen on address 0.0.0.0 so that
+// Bind a socket to the first default Source port. Be sure to listen on address 0.0.0.0 so that
 // broadcast packets are picked up under Linux.
 $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
 socket_bind($socket, '0.0.0.0', 27015);
