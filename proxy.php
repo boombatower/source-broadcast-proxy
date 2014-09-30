@@ -65,10 +65,8 @@ do {
       }
 
       // Send server response back to broadcast client.
-      $forward = new UDPSocket();
-      $forward->connect($from, $from_port, 1000);
-      $forward->send($buffer->_array());
-      $forward->close();
+      $response = $buffer->_array();
+      socket_sendto($socket, $response, strlen($response), 0, $from, $from_port);
     }
     else {
       echo "-> No response from server on port $port" . PHP_EOL;
