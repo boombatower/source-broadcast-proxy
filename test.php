@@ -5,8 +5,21 @@ use Docker\Docker;
 
 class SourceBroadcastProxyTest extends \PHPUnit_Framework_TestCase
 {
-  public function testProxy()
+  public function testProxyDocker()
   {
+    $this->_testProxy(true);
+  }
+
+  public function testProxyPlain()
+  {
+    $this->_testProxy(false);
+  }
+
+  protected function _testProxy($docker = true)
+  {
+    // Not enough disk space to build/download containers so pointless.
+    if (getenv('TRAVIS')) return;
+
     $manager = (new Docker())->getContainerManager();
 
     $fake = new Container(['Image' => 'boombatower/source-server-fake']);
@@ -16,9 +29,20 @@ class SourceBroadcastProxyTest extends \PHPUnit_Framework_TestCase
     $port = $fake->getMappedPort(27015, 'udp')->getHostPort();
     $this->assertInternalType('integer', $port);
 
-    $proxy = new Container(['Image' => 'boombatower/source-broadcast-proxy']);
-    $manager->create($proxy);
-    $manager->start($proxy, ['NetworkMode' => 'host']);
+
+    if ($docker) {
+      $proxy = new Container(['Image' => 'boombatower/source-broadcast-proxy']);
+      $manager->create($proxy);
+      $manager->start($proxy, ['NetworkMode' => 'host']);
+    }
+    else {
+      $descriptorspec = [
+        0 => ['pipe', 'r'],
+        1 => ['file', 'proxy.log', 'w'],
+        2 => ['file', '/dev/null', 'a'],
+      ];
+      $this->process = proc_open('php proxy.php', $descriptorspec, $pipes);
+    }
     sleep(1); // Ensure it has time to start.
 
     require_once 'vendor/koraktor/steam-condenser/lib/steam-condenser.php'; // required
@@ -47,7 +71,12 @@ class SourceBroadcastProxyTest extends \PHPUnit_Framework_TestCase
 .*Received A2S_INFO request from \1
 .*-> Sending 1 cached responses
 .*Handled in [\d.]+ seconds@s';
-    $logs = $manager->attach($proxy, true, false)->getBody()->__toString();
+    if ($docker) {
+      $logs = $manager->attach($proxy, true, false)->getBody()->__toString();
+    }
+    else {
+      $logs = file_get_contents('proxy.log');
+    }
     $this->assertTrue((bool) preg_match($expected, $logs, $match));
     $this->assertEquals($match[2], $port);
   }
@@ -76,6 +105,11 @@ class SourceBroadcastProxyTest extends \PHPUnit_Framework_TestCase
         @$manager->stop($container, 1);
         @$manager->remove($container);
       }
+    }
+
+    if (isset($this->process) && is_resource($this->process)) {
+      proc_terminate($this->process);
+      unlink('proxy.log');
     }
   }
 }

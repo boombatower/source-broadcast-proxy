@@ -24,5 +24,4 @@ sleep 2
 
 # $init is set by sekexe
 cd $(dirname $init)/..
-./build # force local docker image build to pick up current changes
-php vendor/bin/phpunit
+export TRAVIS=true; php vendor/bin/phpunit
