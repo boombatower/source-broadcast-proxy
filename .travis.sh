@@ -23,4 +23,6 @@ docker -d -H 0.0.0.0:2375 -H unix:///var/run/docker.sock 2>> /dev/null >> /dev/n
 sleep 2
 
 # $init is set by sekexe
-cd $(dirname $init)/.. && php vendor/bin/phpunit
+cd $(dirname $init)/..
+./build # force local docker image build to pick up current changes
+php vendor/bin/phpunit
