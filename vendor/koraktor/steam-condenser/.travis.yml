@@ -1,0 +1,11 @@
+language: php
+php:
+ - 5.3
+ - 5.4
+ - 5.5
+before_script: composer install
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/8229d26a4f90bcc6cd67
+script: phpunit --bootstrap tests/bootstrap.php tests
