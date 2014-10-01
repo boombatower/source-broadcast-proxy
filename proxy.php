@@ -4,7 +4,8 @@
  * @file
  * Forwards Valve's Source Engine LAN broadcast packets to non-default ports.
  *
- * Designed to look for Docker containers that expose default source engine port.
+ * Designed to look for Docker containers that expose default source engine port. See the README for
+ * more information on configuration and usage.
  *
  * @see https://developer.valvesoftware.com/wiki/Server_queries
  */
