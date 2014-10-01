@@ -15,6 +15,7 @@ require_once 'vendor/koraktor/steam-condenser/lib/steam-condenser.php'; // requi
 
 const PACKET_MAX = 16384; // 2^14.
 const ELAPSE_MAX = 2.8; // Seconds that a Source client waits for response (3) with margin.
+const CACHE_LIFETIME = 5; // Number of seconds to cache results.
 
 $valve_ports = range(27015, 27020);
 
@@ -33,55 +34,74 @@ $manager = (new Docker\Docker($client))->getContainerManager();
 // Determine Docker container ID (if running as one), otherwise will result in blank.
 $id_self = trim(`cat /proc/self/cgroup | grep -o  -e "docker-.*.scope" | head -n 1 | sed "s/docker-\(.*\).scope/\\1/"`);
 
+// Initialize cache variables.
+$responses = [];
+$responses_expire = 0;
 do {
   // Block until data received.
   $from = '';
   $from_port = 0;
   socket_recvfrom($socket, $buffer, PACKET_MAX, 0, $from, $from_port);
-  $start = microtime(true);
+  $time_start = microtime(true);
 
   echo "Received A2S_INFO request from $from:$from_port" . PHP_EOL;
 
-  // Forward packet to all running Docker containers that expose a Source Engine port.
-  $sockets = [];
-  foreach ($manager->findAll() as $container) {
-    // Do not forward request to self (good 'ol infinite loops).
-    if ($container->getId() == $id_self) continue;
+  // Only bother to forward if responses are expired.
+  $time_current = time();
+  if ($time_current >= $responses_expire) {
+    // Forward packet to all running Docker containers that expose a Source Engine port.
+    $responses = [];
+    $responses_expire = $time_current + CACHE_LIFETIME;
+    $sockets = [];
+    foreach ($manager->findAll() as $container) {
+      // Do not forward request to self (good 'ol infinite loops).
+      if ($container->getId() == $id_self) continue;
 
-    foreach ($container->getData()['Ports'] as $port) {
-      if (in_array($port['PrivatePort'], $valve_ports)) {
-        echo "-> Forwarding to Source server on port {$port['PublicPort']}" . PHP_EOL;
+      foreach ($container->getData()['Ports'] as $port) {
+        if (in_array($port['PrivatePort'], $valve_ports)) {
+          echo "-> Forwarding to Source server on port {$port['PublicPort']}" . PHP_EOL;
 
-        // Forward the packet to the Source server.
-        $sockets[$port['PublicPort']] = new UDPSocket();
-        $sockets[$port['PublicPort']]->connect('0.0.0.0', $port['PublicPort'], 1000);
-        $sockets[$port['PublicPort']]->send($buffer);
+          // Forward the packet to the Source server.
+          $sockets[$port['PublicPort']] = new UDPSocket();
+          $sockets[$port['PublicPort']]->connect('0.0.0.0', $port['PublicPort'], 1000);
+          $sockets[$port['PublicPort']]->send($buffer);
+        }
+      }
+    }
+
+    // Check for responses and send them back to broadcast client. Forwarding the broadcast packet
+    // without waiting ensures that each server has the maximum amount of time to response.
+    foreach ($sockets as $port => $forward) {
+      $time_left = ELAPSE_MAX - (microtime(true) - $time_start);
+      if ($forward->select((int) $time_left * 1000)) {
+        $data = $forward->recv(PACKET_MAX);
+        $forward->close();
+
+        // Change the server port to match the public port for the container.
+        $buffer = ByteBuffer::wrap($data);
+        if (!set_port($buffer, (int) $port)) {
+          echo "-> Failed to set port in response from server on port $port" . PHP_EOL;
+        }
+
+        // Cache respponse to ensure that very high request rates still see timely responses.
+        $responses[] = $response = $buffer->_array();
+
+        // Send server response back to broadcast client.
+        socket_sendto($socket, $response, strlen($response), 0, $from, $from_port);
+      }
+      else {
+        echo "-> No response from server on port $port" . PHP_EOL;
       }
     }
   }
-
-  // Check for responses and send them back to broadcast client. Forwarding the broadcast packet
-  // without waiting ensures that each server has the maximum amount of time to response.
-  foreach ($sockets as $port => $forward) {
-    $time_left = ELAPSE_MAX - (microtime(true) - $start);
-    if ($forward->select((int) $time_left * 1000)) {
-      $data = $forward->recv(PACKET_MAX);
-      $forward->close();
-
-      // Change the server port to match the public port for the container.
-      $buffer = ByteBuffer::wrap($data);
-      if (!set_port($buffer, (int) $port)) {
-        echo "-> Failed to set port in response from server on port $port" . PHP_EOL;
-      }
-
-      // Send server response back to broadcast client.
-      $response = $buffer->_array();
+  // Use cached respones.
+  else {
+    echo '-> Sending ' . number_format(count($responses)) . ' cached responses' . PHP_EOL;
+    foreach ($responses as $response) {
       socket_sendto($socket, $response, strlen($response), 0, $from, $from_port);
     }
-    else {
-      echo "-> No response from server on port $port" . PHP_EOL;
-    }
   }
+  echo 'Handled in ' . number_format(microtime(true) - $time_start, 6) . ' seconds' . PHP_EOL;
 }
 // Used for testing: pass any extra argument to cause loop to only execute once.
 while ($argc == 1);
