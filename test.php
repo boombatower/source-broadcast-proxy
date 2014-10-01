@@ -7,7 +7,6 @@ class SourceBroadcastProxyTest extends \PHPUnit_Framework_TestCase
 {
   public function testProxy()
   {
-  $start = time();
     $manager = (new Docker())->getContainerManager();
 
     $fake = new Container(['Image' => 'boombatower/source-server-fake']);
