@@ -4,7 +4,7 @@
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "ea649992360b4a94cd8ba0aaf947e2d6",
+    "hash": "e61686e5dbb3ecfe0fbc23f2080f583d",
     "packages": [
         {
             "name": "guzzlehttp/guzzle",
@@ -172,16 +172,16 @@
         },
         {
             "name": "stage1/docker-php",
-            "version": "v0.2.1",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/stage1/docker-php.git",
-                "reference": "1476cc53c8a346e69e4e0d58548efe72f7b5802f"
+                "reference": "f68b09dd74ac9e82bfdfe64c223d3003587cad7a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stage1/docker-php/zipball/1476cc53c8a346e69e4e0d58548efe72f7b5802f",
-                "reference": "1476cc53c8a346e69e4e0d58548efe72f7b5802f",
+                "url": "https://api.github.com/repos/stage1/docker-php/zipball/f68b09dd74ac9e82bfdfe64c223d3003587cad7a",
+                "reference": "f68b09dd74ac9e82bfdfe64c223d3003587cad7a",
                 "shasum": ""
             },
             "require": {
@@ -205,7 +205,7 @@
                 "MIT"
             ],
             "description": "A Docker PHP client",
-            "time": "2014-07-16 10:16:04"
+            "time": "2014-09-26 12:36:23"
         },
         {
             "name": "symfony/filesystem",
@@ -309,9 +309,9 @@
 
     ],
     "minimum-stability": "stable",
-    "stability-flags": [
-
-    ],
+    "stability-flags": {
+        "stage1/docker-php": 20
+    },
     "prefer-stable": false,
     "platform": {
         "php": ">= 5.4"
