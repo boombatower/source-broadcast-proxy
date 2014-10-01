@@ -20,6 +20,9 @@
     "koraktor/steam-condenser": "~1.3",
     "stage1/docker-php": "@dev"
   },
+  "require-dev": {
+    "phpunit/phpunit": "~4.2"
+  },
   "bin": [
     "proxy.php"
   ]
