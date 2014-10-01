@@ -13,6 +13,7 @@
 if (PHP_SAPI != 'cli') exit();
 require_once 'vendor/autoload.php';
 require_once 'vendor/koraktor/steam-condenser/lib/steam-condenser.php'; // required
+require_once 'util.php';
 
 const PACKET_MAX = 16384; // 2^14.
 const ELAPSE_MAX = 2.8; // Seconds that a Source client waits for response (3) with margin.
@@ -111,42 +112,3 @@ do {
 while ($argc == 1);
 
 socket_close($socket);
-
-
-/**
- * Override the server port contained in a S2A_INFO2_Packet buffer.
- *
- * @param ByteBuffer $buffer
- *   Buffer containing S2A_INFO2_Packet packet.
- * @param int $port
- *   Value to set for the server port.
- */
-function set_port(ByteBuffer $buffer, $port)
-{
-  $buffer->rewind();
-
-  $buffer->getByte();
-  $buffer->getString();
-  $buffer->getString();
-  $buffer->getString();
-  $buffer->getString();
-  $buffer->getShort();
-  $buffer->getByte();
-  $buffer->getByte();
-  $buffer->getByte();
-  $buffer->getByte();
-  $buffer->getByte();
-  $buffer->getByte();
-  $buffer->getByte();
-  $buffer->getString();
-
-  if($buffer->remaining() > 0) {
-    $extra_data_flag = $buffer->getByte();
-
-    if ($extra_data_flag & S2A_INFO2_Packet::EDF_GAME_PORT) {
-      $buffer->put(pack('S', $port));
-      return true;
-    }
-  }
-  return false;
-}
