@@ -45,6 +45,9 @@ do {
   socket_recvfrom($socket, $buffer, PACKET_MAX, 0, $from, $from_port);
   $time_start = microtime(true);
 
+  // Check that head byte indicates A2S_INFO (skip long at beginning).
+  if (ord($buffer[4]) != SteamPacket::A2S_INFO_HEADER) continue;
+
   echo "Received A2S_INFO request from $from:$from_port" . PHP_EOL;
 
   // Only bother to forward if responses are expired.
