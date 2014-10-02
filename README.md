@@ -44,6 +44,12 @@ needing to be accessed via the Docker gateway.
 
 `--restart 'on-failure'` does exactly what it says to ensure the proxy stays running.
 
+Alternatively, if you do not want to run the proxy as a Docker container it can be executed directly.
+
+```sh
+$ php proxy.php
+```
+
 Source server containers
 ------------------------
 Either build Docker images for the Source servers you are interested in hosting and/or search for
